@@ -32,14 +32,15 @@ int d7 = 22;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 //Stepper motor
-const int stepsPerRevolution = 400; // change this to fit the number of steps per revolution for your stepper motor
-int stp = 40;
+const int stepsPerRevolution = 512; // change th is to fit the number of steps per revolution for your stepper motor
+int stp = 55;
+int stpitem1 = 45;
 int item = 0, qty = 0;
 
 // initialize the stepper motor library with the number of steps per revolution
-Stepper myStepper1(stepsPerRevolution, 34, 35, 36, 37);
-Stepper myStepper2(stepsPerRevolution, 38, 39, 40, 41);
-Stepper myStepper3(stepsPerRevolution, 42, 43, 44, 45);
+Stepper myStepper1(stepsPerRevolution, 34, 36, 35, 37);
+Stepper myStepper2(stepsPerRevolution, 38, 40, 39, 41);
+Stepper myStepper3(stepsPerRevolution, 42, 44, 43, 45);
 
 //keypad
 char input;
@@ -60,9 +61,12 @@ byte colPins[COLS] = {6, 7, 8}; //connect to the column pinouts of the keypad
 Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 //Servo
-Servo servoX;//moves vertically
-//Servo servoY;//moves horizontally
+Servo servoX;//moves vertically // pin 23
+Servo servoY;//moves horizontally // pin 25
 Servo servoGate;//control return-gate state
+int sXpin = 23;
+int sYpin = 10;
+int sGatepin = 9;
 
 void setup() {
   // put your setup code here, to run once:
@@ -77,21 +81,24 @@ void setup() {
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
+
   //Stepper motor
-  myStepper1.setSpeed(1000.0 / stp); // 1000.0 is to convert milliseconds to seconds
+  myStepper1.setSpeed(1000.0 / stpitem1); // 1000.0 is to convert milliseconds to seconds
   myStepper2.setSpeed(1000.0 / stp);
   myStepper3.setSpeed(1000.0 / stp);
 
   //Servo motor
-  servoX.attach(10);
-//  servoY.attach(25);
-  servoGate.attach(9);
+  servoX.attach(sXpin);
+  servoY.attach(sYpin);
+  servoGate.attach(sGatepin);
+
+  resetPipePos();
 }
 
 void loop() {
-  
-  resetPipePos();
-  
+
+  //resetPipePos();
+
   lcd.clear();
   lcd.print("Punch card!");
   delay(1000);
@@ -134,7 +141,7 @@ void loop() {
         Serial.println(String(input));
 
         showBorrowMenu();
-        
+
         do {
           item_ch = keypad.getKey();
         } while (item_ch == NO_KEY);
@@ -170,8 +177,8 @@ void loop() {
                     myStepper1.step(stepsPerRevolution);
                     delay(1000);
                   }
-                  myStepper1.step(-stepsPerRevolution);
-                  delay(1000);
+                  //                  myStepper1.step(-stepsPerRevolution);
+                  //                  delay(1000);
                 }
                 else if (item == 2)
                 {
@@ -184,8 +191,8 @@ void loop() {
                     myStepper2.step(stepsPerRevolution);
                     delay(1000);
                   }
-                  myStepper2.step(-stepsPerRevolution);
-                  delay(1000);
+                  //                  myStepper2.step(-stepsPerRevolution);
+                  //                  delay(1000);
                 }
                 else if (item == 3)
                 {
@@ -198,8 +205,8 @@ void loop() {
                     myStepper3.step(stepsPerRevolution);
                     delay(1000);
                   }
-                  myStepper3.step(-stepsPerRevolution);
-                  delay(1000);
+                  //                  myStepper3.step(-stepsPerRevolution);
+                  //                  delay(1000);
                 }
               }
               else {
@@ -228,24 +235,25 @@ void loop() {
 
         if (item_placed != NO_KEY && item_placed == '*') {
           lcd.clear();
-          lcd.setCursor(2,0);
+          lcd.setCursor(2, 0);
           lcd.print("Detecting...");
-          lcd.setCursor(0,1);
+          lcd.setCursor(0, 1);
           lcd.print("Wait est. 25s");
           delay(1000);
           Serial.println(String(item_placed));//let python know that an item is placed to be returned in the system
-          delay(25000);
+          delay(30000);
           rgn_item = Serial.readStringUntil('\r');//get python response about which item is detected
           lcd.clear();
           lcd.setCursor(0, 0);
+          lcd.print("  Detected");
+          lcd.setCursor(0, 1);
           lcd.print(rgn_item);//print recognised item
           delay(1000);
-          rotateX(rgn_item);//rotates pipe vertically to allign with recognised item's coveyer belt
+          fixItemPath(rgn_item);//rotates pipe vertically to allign with recognised item's coveyer belt
           //delay(1000);
           //servoY.write(45);//rotates pipe horizontally to let item slip down to it's slot in the conveyer belt
-          delay(3000);
-          servoGate.write(90);//opens the return-gate
-          delay(3000);
+          delay(1000);
+
           resetPipePos();//reset pipe position to default position
         }
       }
@@ -317,28 +325,92 @@ void showErrInvalidItem() {
   delay(1000);
 }
 
-void rotateX(String rgn_item) {
-  if(rgn_item == "Humidity"){
-    servoX.write(45);
+void fixItemPath(String rgn_item) {
+  servoGate.write(45);//opens the return-gate
+  delay(2000);
+  servoGate.write(0);//closes the return-gate
+  if (rgn_item == "Humidity") {
+    //servoX.write(45);// pin 23
+    myStepper1.step(-stepsPerRevolution);
+    delay(1000);
+    servoXSlowMove(45, 2000);
+    servoYSlowMove(35, 3000);
     Serial.println(rgn_item);
+    //returnPosition(2000);
   }
-  else if(rgn_item == "Transistor")
+  
+  else if (rgn_item == "Transistor")
   {
-    servoX.write(90);
+    //servoX.write(90);
+    myStepper2.step(-stepsPerRevolution);
+    delay(1000);
+    servoXSlowMove(75, 2000);
+    servoYSlowMove(35, 3000);
     Serial.println(rgn_item);
   }
-  else if(rgn_item == "Bluetooth")
+  
+  else if (rgn_item == "Bluetooth")
   {
-    servoX.write(120);
+    //servoX.write(120);
+    myStepper3.step(-stepsPerRevolution);
+    delay(1000);
+    servoXSlowMove(110, 2000);
+    servoYSlowMove(35, 3000);
     Serial.println(rgn_item);
+    //returnPosition(2000);
   }
-  else{
+  else {
     Serial.println("cannot recognize " + rgn_item);
   }
 }
 
 void resetPipePos() {
-  //servoX.write(90);
-  //servoY.write(0);
+  servoYSlowMove(80, 1000);
   servoGate.write(0);
+  servoXSlowMove(75, 3000);
+}
+
+void servoXSlowMove(int goTo, int del) {
+  //how to find current position?
+  int current = servoX.read();
+  servoXSlowMove2(current, goTo);
+  delay(del);
+}
+void servoXSlowMove2(int startPos, int endPos) {
+  if (startPos > endPos) {
+    for (int i = startPos; i >= endPos; i--)
+    {
+      servoX.write(i);
+      delay(20);
+    }
+  } else {
+    for (int i = startPos; i <= endPos; i++)
+    {
+      servoX.write(i);
+      delay(20);
+    }
+  }
+}
+void servoYSlowMove(int goTo, int del) {
+  int endPos = goTo;
+  int startPos = servoY.read();
+  if (startPos > endPos) {
+    for (int i = startPos; i >= endPos; i--)
+    {
+      servoY.write(i);
+      delay(30);
+    }
+  } else {
+    for (int i = startPos; i <= endPos; i++)
+    {
+      servoY.write(i);
+      delay(30);
+    }
+  }
+  delay(del);
+}
+
+void returnPosition(int del) {
+  servoYSlowMove(120, del);
+  servoYSlowMove(90, del);
 }

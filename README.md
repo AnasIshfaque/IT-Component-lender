@@ -8,3 +8,5 @@ Instruction to run the project:
 1. Upload the "Micro_merge.ino" in Arduino MEGA
 2. Start XAMPP MySQL server
 3. Run the Micro_Pycode
+
+For further details checkout the project report.
